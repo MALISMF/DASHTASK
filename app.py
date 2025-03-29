@@ -82,7 +82,6 @@ def fill_missing_data(dataframe, selected_year, countries):
     
     return result_df
 
-# Определение layout ПЕРЕД запуском сервера
 app.layout = html.Div([
     html.H1(children='Сравнение стран по различным показателям', style={'textAlign': 'center'}),
     
@@ -177,7 +176,8 @@ def update_bubble_chart(x_axis, y_axis, size, selected_year):
         size=size, 
         color='country',
         hover_name='country',
-        title=f'Пузырьковая диаграмма ({selected_year}): {x_axis} vs {y_axis}, размер - {size}'
+        title=f'Пузырьковая диаграмма ({selected_year}): {x_axis} vs {y_axis}, размер - {size}',
+        showlegend = False
     )
     
     # Добавляем информацию об источнике данных в hover только для импутированных данных
