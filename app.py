@@ -2,7 +2,6 @@ from dash import Dash, html, dcc, callback, Output, Input
 import plotly.express as px
 import pandas as pd
 import logging
-import numpy as np
 
 # Настройка логирования
 logging.basicConfig(level=logging.DEBUG)
@@ -56,6 +55,10 @@ def fill_missing_data(dataframe, selected_year, countries):
         
         if len(year_data) > 0:
             # Данные за выбранный год есть, используем их
+            # Добавим колонку is_imputed со значением False, чтобы обозначить оригинальные данные
+            year_data = year_data.copy()
+            year_data['is_imputed'] = False
+            year_data['original_year'] = selected_year
             result_df = pd.concat([result_df, year_data])
         else:
             # Данных за выбранный год нет, ищем ближайший предыдущий год
@@ -66,9 +69,13 @@ def fill_missing_data(dataframe, selected_year, countries):
                 latest_available_year = max(previous_years)
                 latest_data = country_data[country_data['year'] == latest_available_year].copy()
                 
+                # Отмечаем, что данные восстановлены и содержат источник данных
+                latest_data['is_imputed'] = True
+                latest_data['original_year'] = latest_available_year
+                latest_data['data_source'] = f'Данные за {latest_available_year}'
+                
                 # Меняем год на выбранный, чтобы он отображался корректно
                 latest_data['year'] = selected_year
-                latest_data['data_source'] = f'Данные за {latest_available_year}'  # Добавляем информацию об источнике
                 
                 result_df = pd.concat([result_df, latest_data])
                 logging.debug(f"Для страны {country} на год {selected_year} используются данные за {latest_available_year}")
@@ -173,16 +180,25 @@ def update_bubble_chart(x_axis, y_axis, size, selected_year):
         title=f'Пузырьковая диаграмма ({selected_year}): {x_axis} vs {y_axis}, размер - {size}'
     )
     
-    # Добавляем информацию об источнике данных в hover
-    if 'data_source' in filtered_df.columns:
-        fig.update_traces(
-            hovertemplate='<b>%{hovertext}</b><br><br>' +
-                          f'{x_axis}: %{{x}}<br>' +
-                          f'{y_axis}: %{{y}}<br>' +
-                          f'{size}: %{{marker.size}}<br>' +
-                          '%{customdata}<extra></extra>',
-            customdata=filtered_df['data_source'] if 'data_source' in filtered_df.columns else None
-        )
+    # Добавляем информацию об источнике данных в hover только для импутированных данных
+    if 'is_imputed' in filtered_df.columns:
+        # Создаем пользовательский hover для каждой точки
+        hovertemplate_base = '<b>%{hovertext}</b><br><br>' + \
+                             f'{x_axis}: %{{x}}<br>' + \
+                             f'{y_axis}: %{{y}}<br>' + \
+                             f'{size}: %{{marker.size}}<br>'
+        
+        for i, point in enumerate(fig.data):
+            country_name = point.name
+            country_data = filtered_df[filtered_df['country'] == country_name]
+            
+            if not country_data.empty and country_data['is_imputed'].iloc[0]:
+                # Для импутированных данных добавляем информацию об источнике
+                original_year = country_data['original_year'].iloc[0]
+                point.hovertemplate = hovertemplate_base + f'Источник: данные за {original_year}<extra></extra>'
+            else:
+                # Для оригинальных данных оставляем стандартный hover
+                point.hovertemplate = hovertemplate_base + '<extra></extra>'
     
     return fig
 
@@ -205,12 +221,14 @@ def update_top_population(selected_year):
         x='country', 
         y='pop', 
         title=f'Топ-15 стран по населению ({selected_year})', 
-        text_auto=True
+        text_auto=True,
+        color='is_imputed',
+        color_discrete_map={True: 'lightblue', False: 'blue'}
     )
     
-    # Добавляем аннотации для стран с данными из предыдущих лет
+    # Добавляем аннотации только для стран с импутированными данными
     for i, row in enumerate(top_countries.itertuples()):
-        if hasattr(row, 'data_source'):
+        if hasattr(row, 'is_imputed') and row.is_imputed:
             fig.add_annotation(
                 x=row.country,
                 y=row.pop,
@@ -219,15 +237,44 @@ def update_top_population(selected_year):
                 font=dict(size=20, color="red")
             )
     
-    # Добавляем примечание, если есть страны с данными из предыдущих лет
-    if 'data_source' in top_countries.columns and top_countries['data_source'].notna().any():
+    # Добавляем примечание только если есть страны с импутированными данными
+    if 'is_imputed' in top_countries.columns and top_countries['is_imputed'].any():
+        # Получаем список стран с импутированными данными для легенды
+        imputed_countries = top_countries[top_countries['is_imputed']].copy()
+        imputed_info = []
+        
+        for _, row in imputed_countries.iterrows():
+            imputed_info.append(f"{row['country']} (данные за {row['original_year']})")
+            
+        imputed_text = "* - Импутированные данные: " + ", ".join(imputed_info)
+        
         fig.add_annotation(
-            text="* - Данные взяты за ближайший предыдущий год",
+            text=imputed_text,
             xref="paper", yref="paper",
-            x=1, y=-0.15,
+            x=0.5, y=-0.15,
             showarrow=False,
-            font=dict(size=12)
+            font=dict(size=12),
+            align="center"
         )
+        
+        # Обновляем легенду
+        fig.update_layout(
+            legend=dict(
+                title="Данные",
+                orientation="h",
+                yanchor="bottom",
+                y=1.02,
+                xanchor="right",
+                x=1
+            )
+        )
+        
+        # Переименовываем элементы легенды
+        newnames = {'True': 'Импутированные данные', 'False': 'Оригинальные данные'}
+        fig.for_each_trace(lambda t: t.update(name = newnames[t.name]))
+    else:
+        # Если нет импутированных данных, скрываем легенду
+        fig.update_layout(showlegend=False)
     
     return fig
 
@@ -244,25 +291,54 @@ def update_continent_population(selected_year):
     
     continent_data = filled_df.groupby('continent', as_index=False)['pop'].sum()
     
+    # Считаем, сколько импутированных стран по континентам
+    if 'is_imputed' in filled_df.columns:
+        imputed_counts = filled_df[filled_df['is_imputed']].groupby('continent').size().reset_index(name='imputed_count')
+        total_counts = filled_df.groupby('continent').size().reset_index(name='total_count')
+        
+        # Объединяем с основными данными
+        continent_data = pd.merge(continent_data, imputed_counts, on='continent', how='left')
+        continent_data = pd.merge(continent_data, total_counts, on='continent', how='left')
+        continent_data['imputed_count'] = continent_data['imputed_count'].fillna(0)
+        
+        # Добавляем информацию о импутированных странах для hover
+        continent_data['hover_info'] = continent_data.apply(
+            lambda row: f"{row['continent']}<br>Население: {int(row['pop'])}<br>Импутировано: {int(row['imputed_count'])}/{int(row['total_count'])} стран", 
+            axis=1
+        )
+    
     fig = px.pie(
         continent_data, 
         names='continent', 
         values='pop', 
-        title=f'Распределение населения по континентам ({selected_year})'
+        title=f'Распределение населения по континентам ({selected_year})',
+        hover_data=['hover_info'] if 'hover_info' in continent_data.columns else None
     )
     
-    # Добавляем примечание о возможном использовании данных за предыдущие годы
-    if 'data_source' in filled_df.columns and filled_df['data_source'].notna().any():
-        fig.add_annotation(
-            text="Примечание: Для некоторых стран использованы данные за ближайший предыдущий год",
-            xref="paper", yref="paper",
-            x=0.5, y=-0.1,
-            showarrow=False,
-            font=dict(size=12)
-        )
+    # Если есть импутированные данные, добавляем примечание
+    has_imputed = 'is_imputed' in filled_df.columns and filled_df['is_imputed'].any()
+    
+    if has_imputed:
+        # Создаем текст с информацией о импутированных странах
+        imputed_info = []
+        for continent, group in filled_df[filled_df['is_imputed']].groupby('continent'):
+            countries = group['country'].tolist()
+            if countries:
+                imputed_info.append(f"{continent}: {', '.join(countries)}")
+        
+        # Если список не пустой, добавляем аннотацию
+        if imputed_info:
+            fig.add_annotation(
+                text="Страны с импутированными данными:<br>" + "<br>".join(imputed_info),
+                xref="paper", yref="paper",
+                x=0.5, y=-0.2,
+                showarrow=False,
+                font=dict(size=12),
+                align="center"
+            )
     
     return fig
 
 # Добавляем запуск сервера только для локальной разработки
 if __name__ == '__main__':
-    app.run(debug=False)  # Отключаем debug режим для продакшена
+    app.run_server(debug=False)  # Отключаем debug режим для продакшена
