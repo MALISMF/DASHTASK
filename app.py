@@ -1,13 +1,35 @@
 from dash import Dash, html, dcc, callback, Output, Input
 import plotly.express as px
 import pandas as pd
+import logging
+
+# Настройка логирования
+logging.basicConfig(level=logging.DEBUG)
+logging.debug("Начало инициализации приложения")
 
 # Подключение внешних CSS стилей
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 app = Dash(__name__, external_stylesheets=external_stylesheets)
 
-# Загрузка данных
-df = pd.read_csv('https://raw.githubusercontent.com/plotly/datasets/master/gapminder_unfiltered.csv')
+# Определение серверного объекта для Gunicorn
+server = app.server
+
+# Загрузка данных с обработкой исключений
+try:
+    logging.debug("Начинаем загрузку данных")
+    df = pd.read_csv('https://raw.githubusercontent.com/plotly/datasets/master/gapminder_unfiltered.csv')
+    logging.debug(f"Данные успешно загружены, размер: {df.shape}")
+except Exception as e:
+    logging.error(f"Ошибка загрузки данных: {e}")
+    # Создаем пустой DataFrame с необходимыми колонками в случае ошибки
+    df = pd.DataFrame({
+        'country': ['Example'],
+        'continent': ['Example'],
+        'year': [2007],
+        'pop': [1000000],
+        'gdpPercap': [5000],
+        'lifeExp': [70]
+    })
 
 # Доступные числовые меры
 numeric_columns = ['pop', 'gdpPercap', 'lifeExp']
@@ -16,6 +38,7 @@ numeric_columns = ['pop', 'gdpPercap', 'lifeExp']
 available_years = sorted(df['year'].unique())
 year_marks = {str(year): str(year) for year in available_years}
 
+# Определение layout ПЕРЕД запуском сервера
 app.layout = html.Div([
     html.H1(children='Сравнение стран по различным показателям', style={'textAlign': 'center'}),
     
@@ -139,8 +162,6 @@ def update_continent_population(selected_year):
         title=f'Распределение населения по континентам ({selected_year})'
     )
 
-app = Dash(__name__, external_stylesheets=external_stylesheets)
-server = app.server  # Добавьте эту строку
-
+# Добавляем запуск сервера только для локальной разработки
 if __name__ == '__main__':
-    app.run_server(debug=True)
+    app.run_server(debug=False)  # Отключаем debug режим для продакшена
