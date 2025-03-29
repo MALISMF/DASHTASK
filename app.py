@@ -244,7 +244,7 @@ def update_top_population(selected_year):
         fig.add_annotation(
             text="* - Данные за предыдущий доступный год",
             xref="paper", yref="paper",
-            x=0.5, y=-2,
+            x=0.5, y=1,
             showarrow=False,
             font=dict(size=12),
             align="center"
