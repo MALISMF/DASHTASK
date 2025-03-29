@@ -176,9 +176,9 @@ def update_bubble_chart(x_axis, y_axis, size, selected_year):
         size=size, 
         color='country',
         hover_name='country',
-        title=f'Пузырьковая диаграмма ({selected_year}): {x_axis} vs {y_axis}, размер - {size}',
-        showlegend = False
+        title=f'Пузырьковая диаграмма ({selected_year}): {x_axis} vs {y_axis}, размер - {size}'
     )
+    fig.update_layout(showlegend=False)
     
     # Добавляем информацию об источнике данных в hover только для импутированных данных
     if 'is_imputed' in filtered_df.columns:
