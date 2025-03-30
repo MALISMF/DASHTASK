@@ -72,9 +72,9 @@ def register_callbacks(app):
         return fig
 
     @callback(
-        Output('top-population-chart', 'figure'),
-        Input('year-slider', 'value')
-    )
+    Output('top-population-chart', 'figure'),
+    Input('year-slider', 'value')
+)
     def update_top_population(selected_year):
         # Находим все страны в датасете
         all_countries = df['country'].unique()
@@ -85,13 +85,28 @@ def register_callbacks(app):
         # Затем сортируем по популяции и берем только первые 15 записей
         top_countries = filled_df.sort_values('pop', ascending=False).head(15)
         
+        # Создаем кастомные hover-тексты
+        hover_texts = []
+        for i, row in top_countries.iterrows():
+            hover_text = f"<b>{row['country']}</b><br>" + \
+                        f"Население: {int(row['pop']):,}"
+            
+            if hasattr(row, 'is_imputed') and row.is_imputed:
+                hover_text += f"<br><i>* Данные за {row.original_year}</i>"
+            
+            hover_texts.append(hover_text)
+        
         fig = px.bar(
             top_countries, 
             x='country', 
             y='pop', 
             title=f'Топ-15 стран по населению ({selected_year})', 
-            text_auto=True
+            text_auto=True,
+            hover_data=None  # Отключаем стандартный hover
         )
+        
+        # Устанавливаем кастомные hover-тексты
+        fig.update_traces(hovertemplate='%{customdata}<extra></extra>', customdata=hover_texts)
         
         # Добавляем аннотации только для стран с импутированными данными
         for i, row in enumerate(top_countries.itertuples()):
@@ -106,14 +121,10 @@ def register_callbacks(app):
         
         # Добавляем компактное примечание только если есть страны с импутированными данными
         if 'is_imputed' in top_countries.columns and top_countries['is_imputed'].any():
-            # Получаем список стран с импутированными данными
-            imputed_countries = top_countries[top_countries['is_imputed']].copy()
-            
-            # Создаем компактное примечание
             fig.add_annotation(
                 text="* - Данные за предыдущий доступный год",
                 xref="paper", yref="paper",
-                x=0.5, y=1,
+                x=0.5, y=-0.15,
                 showarrow=False,
                 font=dict(size=12),
                 align="center"
