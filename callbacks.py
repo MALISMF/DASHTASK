@@ -124,7 +124,7 @@ def register_callbacks(app):
             fig.add_annotation(
                 text="* - Данные за предыдущий доступный год",
                 xref="paper", yref="paper",
-                x=0.5, y=-0.15,
+                x=0.5, y=1,
                 showarrow=False,
                 font=dict(size=12),
                 align="center"
