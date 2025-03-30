@@ -1,11 +1,6 @@
 from dash import Dash, html, dcc, callback, Output, Input
 import plotly.express as px
 import pandas as pd
-import logging
-
-# Настройка логирования
-logging.basicConfig(level=logging.DEBUG)
-logging.debug("Начало инициализации приложения")
 
 # Подключение внешних CSS стилей
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
@@ -14,29 +9,12 @@ app = Dash(__name__, external_stylesheets=external_stylesheets)
 # Определение серверного объекта для Gunicorn
 server = app.server
 
-# Загрузка данных с обработкой исключений
-try:
-    logging.debug("Начинаем загрузку данных")
-    df = pd.read_csv('https://raw.githubusercontent.com/plotly/datasets/master/gapminder_unfiltered.csv')
-    logging.debug(f"Данные успешно загружены, размер: {df.shape}")
-except Exception as e:
-    logging.error(f"Ошибка загрузки данных: {e}")
-    # Создаем пустой DataFrame с необходимыми колонками в случае ошибки
-    df = pd.DataFrame({
-        'country': ['Example'],
-        'continent': ['Example'],
-        'year': [2007],
-        'pop': [1000000],
-        'gdpPercap': [5000],
-        'lifeExp': [70]
-    })
+# Загрузка данных 
+df = pd.read_csv('https://raw.githubusercontent.com/plotly/datasets/master/gapminder_unfiltered.csv')
+
 
 # Доступные числовые меры
 numeric_columns = ['pop', 'gdpPercap', 'lifeExp']
-
-# Получение списка доступных годов
-available_years = sorted(df['year'].unique())
-year_marks = {str(year): str(year) for year in available_years}
 
 # Функция для заполнения недостающих данных за год последними доступными данными
 def fill_missing_data(dataframe, selected_year, countries):
@@ -78,9 +56,12 @@ def fill_missing_data(dataframe, selected_year, countries):
                 latest_data['year'] = selected_year
                 
                 result_df = pd.concat([result_df, latest_data])
-                logging.debug(f"Для страны {country} на год {selected_year} используются данные за {latest_available_year}")
     
     return result_df
+
+# Получение списка доступных годов
+available_years = sorted(df['year'].unique())
+year_marks = {str(year): str(year) for year in available_years}
 
 app.layout = html.Div([
     html.H1(children='Сравнение стран по различным показателям', style={'textAlign': 'center'}),
@@ -146,6 +127,14 @@ app.layout = html.Div([
         dcc.Graph(id='continent-population-pie')
     ])
 ])
+
+
+
+
+
+
+
+
 
 @callback(
     Output('graph-content', 'figure'),
