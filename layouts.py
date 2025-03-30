@@ -15,6 +15,7 @@ def create_layout():
     year_marks = {str(year): str(year) for year in available_years[::5]}
 
     layout = html.Div([
+
         html.H1(children='Сравнение стран по различным показателям', style={'textAlign': 'center'}),
         
         html.Div([
@@ -28,6 +29,9 @@ def create_layout():
                 value=max(available_years),
             ),
         ], style={'padding': '20px'}),
+
+        #Скрытый компонент для хранения выбранного года на слайдере
+        dcc.Store(id='selected-year-store', data=max(available_years)),
         
         html.Div([
             html.H2('Временной ряд по странам', style={'textAlign': 'center'}),

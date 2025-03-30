@@ -5,6 +5,14 @@ from data_processing import fill_missing_data, load_data
 def register_callbacks(app):
     df = load_data()
 
+    # Колбэк для хранения выбранного года
+    @callback(
+    Output('selected-year-store', 'data'),
+    Input('year-slider', 'value')
+)
+    def update_selected_year(selected_year):
+        return selected_year
+
     @callback(
         Output('graph-content', 'figure'),
         Input('dropdown-selection', 'value'),
@@ -21,7 +29,7 @@ def register_callbacks(app):
         Input('x-axis-bubble', 'value'),
         Input('y-axis-bubble', 'value'),
         Input('size-bubble', 'value'),
-        Input('year-slider', 'value')
+        Input('selected-year-store', 'data')
     )
     def update_bubble_chart(x_axis, y_axis, size, selected_year):
         # Находим все страны в датасете
