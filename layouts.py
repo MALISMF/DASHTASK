@@ -30,6 +30,8 @@ def create_layout():
             ),
         ], style={'padding': '20px'}),
 
+        html.Pre(df.to_string()),
+
         #Скрытый компонент для хранения выбранного года на слайдере
         dcc.Store(id='selected-year-store', data=max(available_years)),
         
