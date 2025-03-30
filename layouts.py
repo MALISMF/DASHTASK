@@ -12,7 +12,7 @@ def create_layout():
 
     # Получение списка доступных годов
     available_years = sorted(df['year'].unique())
-    year_marks = {str(year): str(year) for year in available_years}
+    year_marks = {str(year): str(year) for year in available_years[::5]}
 
     layout = html.Div([
         html.H1(children='Сравнение стран по различным показателям', style={'textAlign': 'center'}),
@@ -23,7 +23,7 @@ def create_layout():
                 id='year-slider',
                 min=min(available_years),
                 max=max(available_years),
-                step=None,
+                step=1,
                 marks=year_marks,
                 value=max(available_years),
             ),
