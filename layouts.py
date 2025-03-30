@@ -31,7 +31,7 @@ def create_layout():
             ),
         ], style={'padding': '20px'}),
 
-        html.Pre(filtered_df = fill_missing_data(df, 2007, all_countries).to_string()),
+        html.Pre(fill_missing_data(df, 2007, all_countries).to_string()),
 
         #Скрытый компонент для хранения выбранного года на слайдере
         dcc.Store(id='selected-year-store', data=max(available_years)),
