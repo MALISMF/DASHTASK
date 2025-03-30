@@ -65,7 +65,7 @@ def register_callbacks(app):
                 if not country_data.empty and country_data['is_imputed'].iloc[0]:
                     # Для импутированных данных добавляем информацию об источнике
                     original_year = country_data['original_year'].iloc[0]
-                    point.hovertemplate = hovertemplate_base + f'Источник: данные за {original_year}<extra></extra>'
+                    point.hovertemplate = hovertemplate_base + f'<i>* Данные за {original_year}</i><extra></extra>'
                 else:
                     # Для оригинальных данных оставляем стандартный hover
                     point.hovertemplate = hovertemplate_base + '<extra></extra>'
@@ -161,8 +161,7 @@ def register_callbacks(app):
             
             # Добавляем информацию в hover с отношением импутированных стран к общему количеству
             continent_data['hover_info'] = continent_data.apply(
-                lambda row: f"{row['continent']}<br>Население: {int(row['pop'])}<br>" + 
-                        f"Импутировано стран: {int(row['imputed_count'])} из {int(row['total_countries'])}",
+                lambda row:  f"Данных за предыдущие года: {int(row['imputed_count'])} из {int(row['total_countries'])}",
                 axis=1
             )
         
