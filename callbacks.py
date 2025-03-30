@@ -133,61 +133,64 @@ def register_callbacks(app):
         
         return fig
 
-    @callback(
-        Output('continent-population-pie', 'figure'),
-        Input('year-slider', 'value')
+@callback(
+    Output('continent-population-pie', 'figure'),
+    Input('year-slider', 'value')
+)
+def update_continent_population(selected_year):
+    # Находим все страны в датасете
+    all_countries = df['country'].unique()
+    
+    # Заполняем пропущенные данные
+    filled_df = fill_missing_data(df, selected_year, all_countries)
+    
+    continent_data = filled_df.groupby('continent', as_index=False)['pop'].sum()
+    
+    # Считаем общее количество стран по континентам
+    total_countries = filled_df.groupby('continent')['country'].nunique().reset_index(name='total_countries')
+    
+    # Считаем количество импутированных стран по континентам
+    if 'is_imputed' in filled_df.columns:
+        imputed_countries = filled_df[filled_df['is_imputed']].groupby('continent')['country'].nunique().reset_index(name='imputed_count')
+        # Объединяем с основными данными
+        continent_data = pd.merge(continent_data, total_countries, on='continent', how='left')
+        continent_data = pd.merge(continent_data, imputed_countries, on='continent', how='left')
+        continent_data['imputed_count'] = continent_data['imputed_count'].fillna(0)
+    else:
+        continent_data = pd.merge(continent_data, total_countries, on='continent', how='left')
+        continent_data['imputed_count'] = 0
+    
+    # Создаем базовую диаграмму (пока без hover_data)
+    fig = px.pie(
+        continent_data, 
+        names='continent', 
+        values='pop', 
+        title=f'Распределение населения по континентам ({selected_year})'
     )
-    def update_continent_population(selected_year):
-        # Находим все страны в датасете
-        all_countries = df['country'].unique()
-        
-        # Заполняем пропущенные данные
-        filled_df = fill_missing_data(df, selected_year, all_countries)
-        
-        continent_data = filled_df.groupby('continent', as_index=False)['pop'].sum()
-        
-        # Считаем общее количество стран по континентам
-        total_countries = filled_df.groupby('continent')['country'].nunique().reset_index(name='total_countries')
-        
-        # Считаем количество импутированных стран по континентам
-        if 'is_imputed' in filled_df.columns:
-            imputed_countries = filled_df[filled_df['is_imputed']].groupby('continent')['country'].nunique().reset_index(name='imputed_count')
-            # Объединяем с основными данными
-            continent_data = pd.merge(continent_data, total_countries, on='continent', how='left')
-            continent_data = pd.merge(continent_data, imputed_countries, on='continent', how='left')
-            continent_data['imputed_count'] = continent_data['imputed_count'].fillna(0)
-        else:
-            continent_data = pd.merge(continent_data, total_countries, on='continent', how='left')
-            continent_data['imputed_count'] = 0
-        
-        # Создаем базовую диаграмму (пока без hover_data)
-        fig = px.pie(
-            continent_data, 
-            names='continent', 
-            values='pop', 
-            title=f'Распределение населения по континентам ({selected_year})'
+    custom_hovers = []
+    
+    for _, row in continent_data.iterrows():
+        hover_text = f"<b>{row['continent']}</b><br><br>Население: {int(row['pop']):,}<br>Импутировано стран: {int(row['imputed_count'])} из {int(row['total_countries'])}"
+        hover_text = hover_text.replace(',', ' ')  # Заменяем запятые на пробелы для лучшей читаемости чисел
+        custom_hovers.append(hover_text)
+    
+    # Применяем кастомные hovers
+    fig.update_traces(
+        hovertemplate="%{customdata}<extra></extra>",
+        customdata=custom_hovers
+    )
+    
+    # Если есть импутированные данные, добавляем компактное примечание
+    has_imputed = 'is_imputed' in filled_df.columns and filled_df['is_imputed'].any()
+    
+    if has_imputed:
+        fig.add_annotation(
+            text="Примечание: Для некоторых стран использованы данные за ближайший предыдущий год",
+            xref="paper", yref="paper",
+            x=0.5, y=-0.1,
+            showarrow=False,
+            font=dict(size=12),
+            align="center"
         )
-        
-        # Настраиваем полностью кастомный hover
-        hovertemplate = "<b>%{label}</b><br><br>Население: %{value:,.0f}<br>Данных за предыдущие года: %{customdata[0]} из %{customdata[1]}<extra></extra>"
-        
-        # Установка customdata для каждого сектора
-        fig.update_traces(
-            hovertemplate=hovertemplate,
-            customdata=continent_data[['imputed_count', 'total_countries']].values
-        )
-        
-        # Если есть импутированные данные, добавляем компактное примечание
-        has_imputed = 'is_imputed' in filled_df.columns and filled_df['is_imputed'].any()
-        
-        if has_imputed:
-            fig.add_annotation(
-                text="Примечание: Для некоторых стран использованы данные за ближайший предыдущий год",
-                xref="paper", yref="paper",
-                x=0.5, y=-0.1,
-                showarrow=False,
-                font=dict(size=12),
-                align="center"
-            )
-        
-        return fig
+    
+    return fig
