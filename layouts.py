@@ -1,11 +1,12 @@
 from dash import html, dcc
 import pandas as pd
-from data_processing import load_data
+from data_processing import load_data, fill_missing_data
 
 def create_layout():
         
     # Загрузка данных 
     df = load_data()
+    all_countries = df['country'].unique()
 
     # Доступные числовые меры
     numeric_columns = ['pop', 'gdpPercap', 'lifeExp']
@@ -30,7 +31,7 @@ def create_layout():
             ),
         ], style={'padding': '20px'}),
 
-        html.Pre(df.to_string()),
+        html.Pre(filtered_df = fill_missing_data(df, 2007, all_countries).to_string()),
 
         #Скрытый компонент для хранения выбранного года на слайдере
         dcc.Store(id='selected-year-store', data=max(available_years)),
