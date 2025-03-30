@@ -1,6 +1,7 @@
 from dash import callback, Output, Input
 import plotly.express as px
 from data_processing import fill_missing_data, load_data
+import pandas as pd
 
 def register_callbacks(app):
     df = load_data()
@@ -133,9 +134,9 @@ def register_callbacks(app):
         return fig
 
     @callback(
-        Output('continent-population-pie', 'figure'),
-        Input('year-slider', 'value')
-    )
+    Output('continent-population-pie', 'figure'),
+    Input('year-slider', 'value')
+)
     def update_continent_population(selected_year):
         # Находим все страны в датасете
         all_countries = df['country'].unique()
@@ -145,11 +146,32 @@ def register_callbacks(app):
         
         continent_data = filled_df.groupby('continent', as_index=False)['pop'].sum()
         
+        # Если есть импутированные данные, добавляем в hover
+        if 'is_imputed' in filled_df.columns:
+            # Считаем общее количество стран по континентам
+            total_countries = filled_df.groupby('continent')['country'].nunique().reset_index(name='total_countries')
+            
+            # Считаем количество импутированных стран по континентам
+            imputed_countries = filled_df[filled_df['is_imputed']].groupby('continent')['country'].nunique().reset_index(name='imputed_count')
+            
+            # Объединяем с основными данными
+            continent_data = pd.merge(continent_data, total_countries, on='continent', how='left')
+            continent_data = pd.merge(continent_data, imputed_countries, on='continent', how='left')
+            continent_data['imputed_count'] = continent_data['imputed_count'].fillna(0)
+            
+            # Добавляем информацию в hover с отношением импутированных стран к общему количеству
+            continent_data['hover_info'] = continent_data.apply(
+                lambda row: f"{row['continent']}<br>Население: {int(row['pop'])}<br>" + 
+                        f"Импутировано стран: {int(row['imputed_count'])} из {int(row['total_countries'])}",
+                axis=1
+            )
+        
         fig = px.pie(
             continent_data, 
             names='continent', 
             values='pop', 
-            title=f'Распределение населения по континентам ({selected_year})'
+            title=f'Распределение населения по континентам ({selected_year})',
+            hover_data=['hover_info'] if 'hover_info' in continent_data.columns else None
         )
         
         # Если есть импутированные данные, добавляем компактное примечание
