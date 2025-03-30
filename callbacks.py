@@ -89,7 +89,7 @@ def register_callbacks(app):
         # Создаем кастомные hover-тексты
         hover_texts = []
         for i, row in top_countries.iterrows():
-            hover_text = f"<b>{row['country']}</b><br>" + \
+            hover_text = f"<b>{row['country']}</b><br><br>" + \
                         f"Население: {int(row['pop']):,}"
             
             if hasattr(row, 'is_imputed') and row.is_imputed:
@@ -170,7 +170,7 @@ def register_callbacks(app):
         custom_hovers = []
 
         for _, row in continent_data.iterrows():
-            hover_text = f"<b>{row['continent']}</b><br><br>Население: {int(row['pop']):,}<br>Импутировано стран: {int(row['imputed_count'])} из {int(row['total_countries'])}"
+            hover_text = f"<b>{row['continent']}</b><br><br>Население: {int(row['pop']):,}<br>Данных за предыдущие года: {int(row['imputed_count'])} из {int(row['total_countries'])}"
             hover_text = hover_text.replace(',', ' ')  # Заменяем запятые на пробелы для лучшей читаемости чисел
             custom_hovers.append(hover_text)
         
