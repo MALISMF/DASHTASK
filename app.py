@@ -115,16 +115,19 @@ app.layout = html.Div([
     
     html.Div([
         html.H2('Пузырьковая диаграмма', style={'textAlign': 'center'}),
+        html.H3('Ось X'),
         dcc.Dropdown(
             options=[{'label': col, 'value': col} for col in numeric_columns],
             value='gdpPercap',
             id='x-axis-bubble'
         ),
+        html.H3('Ось Y'),
         dcc.Dropdown(
             options=[{'label': col, 'value': col} for col in numeric_columns],
             value='lifeExp',
             id='y-axis-bubble'
         ),
+        html.H3('Размер'),
         dcc.Dropdown(
             options=[{'label': col, 'value': col} for col in numeric_columns],
             value='pop',
@@ -265,27 +268,11 @@ def update_continent_population(selected_year):
     
     continent_data = filled_df.groupby('continent', as_index=False)['pop'].sum()
     
-    # Если есть импутированные данные, добавляем в hover
-    if 'is_imputed' in filled_df.columns:
-        # Считаем количество импутированных стран по континентам
-        imputed_countries = filled_df[filled_df['is_imputed']].groupby('continent').size().reset_index(name='imputed_count')
-        
-        # Объединяем с основными данными
-        continent_data = pd.merge(continent_data, imputed_countries, on='continent', how='left')
-        continent_data['imputed_count'] = continent_data['imputed_count'].fillna(0)
-        
-        # Добавляем информацию в hover, только если есть импутированные страны
-        continent_data['hover_info'] = continent_data.apply(
-            lambda row: f"{row['continent']}<br>Население: {int(row['pop'])}<br>Данных за предыдущие года: {int(row['imputed_count'])}/{int(row['total_count'])}", 
-            axis=1
-        )
-    
     fig = px.pie(
         continent_data, 
         names='continent', 
         values='pop', 
-        title=f'Распределение населения по континентам ({selected_year})',
-        hover_data=['hover_info'] if 'hover_info' in continent_data.columns else None
+        title=f'Распределение населения по континентам ({selected_year})'
     )
     
     # Если есть импутированные данные, добавляем компактное примечание
