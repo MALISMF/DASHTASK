@@ -265,11 +265,27 @@ def update_continent_population(selected_year):
     
     continent_data = filled_df.groupby('continent', as_index=False)['pop'].sum()
     
+    # Если есть импутированные данные, добавляем в hover
+    if 'is_imputed' in filled_df.columns:
+        # Считаем количество импутированных стран по континентам
+        imputed_countries = filled_df[filled_df['is_imputed']].groupby('continent').size().reset_index(name='imputed_count')
+        
+        # Объединяем с основными данными
+        continent_data = pd.merge(continent_data, imputed_countries, on='continent', how='left')
+        continent_data['imputed_count'] = continent_data['imputed_count'].fillna(0)
+        
+        # Добавляем информацию в hover, только если есть импутированные страны
+        continent_data['hover_info'] = continent_data.apply(
+            lambda row: f"{row['continent']}<br>Население: {int(row['pop'])}<br>Данных за предыдущие года: {int(row['imputed_count'])}/{int(row['total_count'])}", 
+            axis=1
+        )
+    
     fig = px.pie(
         continent_data, 
         names='continent', 
         values='pop', 
-        title=f'Распределение населения по континентам ({selected_year})'
+        title=f'Распределение населения по континентам ({selected_year})',
+        hover_data=['hover_info'] if 'hover_info' in continent_data.columns else None
     )
     
     # Если есть импутированные данные, добавляем компактное примечание
