@@ -1,17 +1,39 @@
-from dash import callback, Output, Input
-import plotly.express as px
-from data_processing import fill_missing_data, load_data
+"""
+Модуль с колбек-функциями для приложения Dash.
+Содержит логику обновления графиков и визуализаций.
+"""
+from typing import Dict, List, Any, Union
+
 import pandas as pd
+import plotly.express as px
+from dash import callback, Output, Input
 
-def register_callbacks(app):
+from data_processing import fill_missing_data, load_data
+
+
+def register_callbacks(app) -> None:
+    """
+    Регистрирует все колбек-функции приложения Dash.
+    
+    Args:
+        app: Экземпляр Dash приложения
+    """
     df = load_data()
-
-    # Колбэк для хранения выбранного года
+    
     @callback(
-    Output('selected-year-store', 'data'),
-    Input('year-slider', 'value')
-)
-    def update_selected_year(selected_year):
+        Output('selected-year-store', 'data'),
+        Input('year-slider', 'value')
+    )
+    def update_selected_year(selected_year: int) -> int:
+        """
+        Сохраняет выбранный год в хранилище.
+        
+        Args:
+            selected_year: Год, выбранный пользователем
+            
+        Returns:
+            Выбранный год
+        """
         return selected_year
 
     @callback(
@@ -19,11 +41,30 @@ def register_callbacks(app):
         Input('dropdown-selection', 'value'),
         Input('y-axis-selection', 'value')
     )
-    def update_graph(selected_countries, y_axis):
-        dff = df[df.country.isin(selected_countries)]
+    def update_graph(
+        selected_countries: List[str],
+        y_axis: str
+    ) -> Dict[str, Any]:
+        """
+        Обновляет линейный график в зависимости от выбранных стран и оси Y.
+        
+        Args:
+            selected_countries: Список выбранных стран
+            y_axis: Показатель для оси Y
+            
+        Returns:
+            Объект фигуры Plotly для линейного графика
+        """
+        filtered_df = df[df.country.isin(selected_countries)]
         
         # На временном ряду не нужно заполнять пропуски, так как показываем динамику за все годы
-        return px.line(dff, x='year', y=y_axis, color='country', title=f'Динамика {y_axis}')
+        return px.line(
+            filtered_df,
+            x='year',
+            y=y_axis,
+            color='country',
+            title=f'Динамика {y_axis}'
+        )
 
     @callback(
         Output('bubble-chart', 'figure'),
@@ -32,11 +73,25 @@ def register_callbacks(app):
         Input('size-bubble', 'value'),
         Input('selected-year-store', 'data')
     )
-    def update_bubble_chart(x_axis, y_axis, size, selected_year):
-        # Находим все страны в датасете
-        all_countries = df['country'].unique()
+    def update_bubble_chart(
+        x_axis: str,
+        y_axis: str,
+        size: str,
+        selected_year: int
+    ) -> Dict[str, Any]:
+        """
+        Обновляет пузырьковую диаграмму на основе выбранных параметров.
         
-        # Заполняем пропущенные данные
+        Args:
+            x_axis: Показатель для оси X
+            y_axis: Показатель для оси Y
+            size: Показатель для размера пузырьков
+            selected_year: Выбранный год
+            
+        Returns:
+            Объект фигуры Plotly для пузырьковой диаграммы
+        """
+        all_countries = df['country'].unique()
         filtered_df = fill_missing_data(df, selected_year, all_countries)
         
         fig = px.scatter(
@@ -50,52 +105,31 @@ def register_callbacks(app):
         )
         fig.update_layout(showlegend=False)
         
-        # Добавляем информацию об источнике данных в hover только для импутированных данных
-        if 'is_imputed' in filtered_df.columns:
-            # Создаем пользовательский hover для каждой точки
-            hovertemplate_base = '<b>%{hovertext}</b><br><br>' + \
-                                f'{x_axis}: %{{x}}<br>' + \
-                                f'{y_axis}: %{{y}}<br>' + \
-                                f'{size}: %{{marker.size}}<br>'
-            
-            for i, point in enumerate(fig.data):
-                country_name = point.name
-                country_data = filtered_df[filtered_df['country'] == country_name]
-                
-                if not country_data.empty and country_data['is_imputed'].iloc[0]:
-                    # Для импутированных данных добавляем информацию об источнике
-                    original_year = country_data['original_year'].iloc[0]
-                    point.hovertemplate = hovertemplate_base + f'<i>* Данные за {original_year}</i><extra></extra>'
-                else:
-                    # Для оригинальных данных оставляем стандартный hover
-                    point.hovertemplate = hovertemplate_base + '<extra></extra>'
+        add_imputed_data_hover_info(fig, filtered_df, x_axis, y_axis, size)
         
         return fig
 
     @callback(
-    Output('top-population-chart', 'figure'),
-    Input('year-slider', 'value')
-)
-    def update_top_population(selected_year):
-        # Находим все страны в датасете
-        all_countries = df['country'].unique()
+        Output('top-population-chart', 'figure'),
+        Input('year-slider', 'value')
+    )
+    def update_top_population(selected_year: int) -> Dict[str, Any]:
+        """
+        Обновляет столбчатую диаграмму топ-15 стран по населению.
         
-        # Заполняем пропущенные данные
+        Args:
+            selected_year: Выбранный год
+            
+        Returns:
+            Объект фигуры Plotly для столбчатой диаграммы
+        """
+        all_countries = df['country'].unique()
         filled_df = fill_missing_data(df, selected_year, all_countries)
         
-        # Затем сортируем по популяции и берем только первые 15 записей
+        # Сортируем по популяции и берем только первые 15 записей
         top_countries = filled_df.sort_values('pop', ascending=False).head(15)
         
-        # Создаем кастомные hover-тексты
-        hover_texts = []
-        for i, row in top_countries.iterrows():
-            hover_text = f"<b>{row['country']}</b><br><br>" + \
-                        f"Население: {int(row['pop']):,}"
-            
-            if hasattr(row, 'is_imputed') and row.is_imputed:
-                hover_text += f"<br><i>* Данные за {row.original_year}</i>"
-            
-            hover_texts.append(hover_text)
+        hover_texts = create_population_hover_texts(top_countries)
         
         fig = px.bar(
             top_countries, 
@@ -107,29 +141,12 @@ def register_callbacks(app):
         )
         
         # Устанавливаем кастомные hover-тексты
-        fig.update_traces(hovertemplate='%{customdata}<extra></extra>', customdata=hover_texts)
+        fig.update_traces(
+            hovertemplate='%{customdata}<extra></extra>',
+            customdata=hover_texts
+        )
         
-        # Добавляем аннотации только для стран с импутированными данными
-        for i, row in enumerate(top_countries.itertuples()):
-            if hasattr(row, 'is_imputed') and row.is_imputed:
-                fig.add_annotation(
-                    x=row.country,
-                    y=row.pop,
-                    text="*",
-                    showarrow=False,
-                    font=dict(size=20, color="red")
-                )
-        
-        # Добавляем компактное примечание только если есть страны с импутированными данными
-        if 'is_imputed' in top_countries.columns and top_countries['is_imputed'].any():
-            fig.add_annotation(
-                text="* - Данные за предыдущий доступный год",
-                xref="paper", yref="paper",
-                x=0.5, y=1,
-                showarrow=False,
-                font=dict(size=12),
-                align="center"
-            )
+        add_imputed_data_annotations(fig, top_countries)
         
         return fig
 
@@ -137,42 +154,29 @@ def register_callbacks(app):
         Output('continent-population-pie', 'figure'),
         Input('year-slider', 'value')
     )
-    def update_continent_population(selected_year):
-        # Находим все страны в датасете
-        all_countries = df['country'].unique()
+    def update_continent_population(selected_year: int) -> Dict[str, Any]:
+        """
+        Обновляет круговую диаграмму распределения населения по континентам.
         
-        # Заполняем пропущенные данные
+        Args:
+            selected_year: Выбранный год
+            
+        Returns:
+            Объект фигуры Plotly для круговой диаграммы
+        """
+        all_countries = df['country'].unique()
         filled_df = fill_missing_data(df, selected_year, all_countries)
         
-        continent_data = filled_df.groupby('continent', as_index=False)['pop'].sum()
+        continent_data = prepare_continent_data(filled_df)
         
-        # Считаем общее количество стран по континентам
-        total_countries = filled_df.groupby('continent')['country'].nunique().reset_index(name='total_countries')
-        
-        # Считаем количество импутированных стран по континентам
-        if 'is_imputed' in filled_df.columns:
-            imputed_countries = filled_df[filled_df['is_imputed']].groupby('continent')['country'].nunique().reset_index(name='imputed_count')
-            # Объединяем с основными данными
-            continent_data = pd.merge(continent_data, total_countries, on='continent', how='left')
-            continent_data = pd.merge(continent_data, imputed_countries, on='continent', how='left')
-            continent_data['imputed_count'] = continent_data['imputed_count'].fillna(0)
-        else:
-            continent_data = pd.merge(continent_data, total_countries, on='continent', how='left')
-            continent_data['imputed_count'] = 0
-        
-        # Создаем базовую диаграмму (пока без hover_data)
         fig = px.pie(
             continent_data, 
             names='continent', 
             values='pop', 
             title=f'Распределение населения по континентам ({selected_year})'
         )
-        custom_hovers = []
-
-        for _, row in continent_data.iterrows():
-            hover_text = f"<b>{row['continent']}</b><br><br>Население: {int(row['pop']):,}<br>Данных за предыдущие года: {int(row['imputed_count'])} из {int(row['total_countries'])}"
-            hover_text = hover_text.replace(',', ' ')  # Заменяем запятые на пробелы для лучшей читаемости чисел
-            custom_hovers.append(hover_text)
+        
+        custom_hovers = create_continent_hover_texts(continent_data)
         
         # Применяем кастомные hovers
         fig.update_traces(
@@ -180,7 +184,7 @@ def register_callbacks(app):
             customdata=custom_hovers
         )
         
-        # Если есть импутированные данные, добавляем компактное примечание
+        # Если есть импутированные данные, добавляем примечание
         has_imputed = 'is_imputed' in filled_df.columns and filled_df['is_imputed'].any()
         
         if has_imputed:
@@ -194,3 +198,164 @@ def register_callbacks(app):
             )
         
         return fig
+
+
+def add_imputed_data_hover_info(
+    fig: Any,
+    filtered_df: pd.DataFrame,
+    x_axis: str,
+    y_axis: str,
+    size: str
+) -> None:
+    """
+    Добавляет информацию о импутированных данных в подсказки при наведении.
+    
+    Args:
+        fig: Объект фигуры Plotly
+        filtered_df: Датафрейм с данными
+        x_axis: Показатель для оси X
+        y_axis: Показатель для оси Y
+        size: Показатель для размера
+    """
+    if 'is_imputed' not in filtered_df.columns:
+        return
+
+    hovertemplate_base = (
+        f'<b>%{{hovertext}}</b><br><br>'
+        f'{x_axis}: %{{x}}<br>'
+        f'{y_axis}: %{{y}}<br>'
+        f'{size}: %{{marker.size}}<br>'
+    )
+    
+    for i, point in enumerate(fig.data):
+        country_name = point.name
+        country_data = filtered_df[filtered_df['country'] == country_name]
+        
+        if not country_data.empty and country_data['is_imputed'].iloc[0]:
+            # Для импутированных данных добавляем информацию об источнике
+            original_year = country_data['original_year'].iloc[0]
+            point.hovertemplate = f"{hovertemplate_base}<i>* Данные за {original_year}</i><extra></extra>"
+        else:
+            # Для оригинальных данных оставляем стандартный hover
+            point.hovertemplate = f"{hovertemplate_base}<extra></extra>"
+
+
+def create_population_hover_texts(top_countries: pd.DataFrame) -> List[str]:
+    """
+    Создает тексты подсказок для столбчатой диаграммы населения.
+    
+    Args:
+        top_countries: Датафрейм с данными топ стран
+        
+    Returns:
+        Список текстов подсказок
+    """
+    hover_texts = []
+    for _, row in top_countries.iterrows():
+        hover_text = (
+            f"<b>{row['country']}</b><br><br>"
+            f"Население: {int(row['pop']):,}"
+        )
+        
+        if 'is_imputed' in top_countries.columns and row.get('is_imputed'):
+            hover_text += f"<br><i>* Данные за {row.original_year}</i>"
+        
+        hover_texts.append(hover_text)
+    
+    return hover_texts
+
+
+def add_imputed_data_annotations(fig: Any, top_countries: pd.DataFrame) -> None:
+    """
+    Добавляет аннотации для стран с импутированными данными.
+    
+    Args:
+        fig: Объект фигуры Plotly
+        top_countries: Датафрейм с данными топ стран
+    """
+    # Добавляем аннотации только для стран с импутированными данными
+    for row in top_countries.itertuples():
+        if hasattr(row, 'is_imputed') and row.is_imputed:
+            fig.add_annotation(
+                x=row.country,
+                y=row.pop,
+                text="*",
+                showarrow=False,
+                font=dict(size=20, color="red")
+            )
+    
+    # Добавляем компактное примечание только если есть страны с импутированными данными
+    has_imputed = ('is_imputed' in top_countries.columns and 
+                  top_countries['is_imputed'].any())
+    
+    if has_imputed:
+        fig.add_annotation(
+            text="* - Данные за предыдущий доступный год",
+            xref="paper", yref="paper",
+            x=0.5, y=1,
+            showarrow=False,
+            font=dict(size=12),
+            align="center"
+        )
+
+
+def prepare_continent_data(filled_df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Подготавливает данные о континентах для круговой диаграммы.
+    
+    Args:
+        filled_df: Датафрейм с данными
+        
+    Returns:
+        Датафрейм с агрегированными данными по континентам
+    """
+    continent_data = filled_df.groupby('continent', as_index=False)['pop'].sum()
+    
+    # Считаем общее количество стран по континентам
+    total_countries = (filled_df.groupby('continent')['country']
+                      .nunique()
+                      .reset_index(name='total_countries'))
+    
+    # Считаем количество импутированных стран по континентам
+    if 'is_imputed' in filled_df.columns:
+        imputed_countries = (
+            filled_df[filled_df['is_imputed']]
+            .groupby('continent')['country']
+            .nunique()
+            .reset_index(name='imputed_count')
+        )
+        # Объединяем с основными данными
+        continent_data = pd.merge(continent_data, total_countries, on='continent', how='left')
+        continent_data = pd.merge(continent_data, imputed_countries, on='continent', how='left')
+        continent_data['imputed_count'] = continent_data['imputed_count'].fillna(0)
+    else:
+        continent_data = pd.merge(continent_data, total_countries, on='continent', how='left')
+        continent_data['imputed_count'] = 0
+    
+    return continent_data
+
+
+def create_continent_hover_texts(continent_data: pd.DataFrame) -> List[str]:
+    """
+    Создает тексты подсказок для круговой диаграммы континентов.
+    
+    Args:
+        continent_data: Датафрейм с данными континентов
+        
+    Returns:
+        Список текстов подсказок
+    """
+    custom_hovers = []
+
+    for _, row in continent_data.iterrows():
+        hover_text = (
+            f"<b>{row['continent']}</b><br><br>"
+            f"Население: {int(row['pop']):,}<br>"
+            f"Данных за предыдущие года: {int(row['imputed_count'])} из "
+            f"{int(row['total_countries'])}"
+        )
+        # Заменяем запятые на пробелы для лучшей читаемости чисел
+        hover_text = hover_text.replace(',', ' ')
+        custom_hovers.append(hover_text)
+    
+    return custom_hovers
