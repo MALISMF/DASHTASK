@@ -6,9 +6,10 @@ from dash import Dash
 from layouts import create_layout
 from callbacks import register_callbacks
 
-# Подключение внешних CSS стилей
-external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
-app = Dash(__name__, external_stylesheets=external_stylesheets)
+# Подключение внешних CSS-стилей
+EXTERNAL_STYLESHEETS = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
+
+app = Dash(__name__, external_stylesheets=EXTERNAL_STYLESHEETS)
 
 # Определение серверного объекта для Gunicorn
 server = app.server
