@@ -1,3 +1,7 @@
+"""
+Основной модуль приложения Dash.
+Настраивает и запускает веб-сервер с приложением визуализации данных.
+"""
 from dash import Dash
 from layouts import create_layout
 from callbacks import register_callbacks
