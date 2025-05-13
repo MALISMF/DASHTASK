@@ -2,13 +2,14 @@
 Модуль с колбек-функциями для приложения Dash.
 Содержит логику обновления графиков и визуализаций.
 """
+from typing import Dict, List, Any, Union
 
 from dash import callback, Output, Input
 import plotly.express as px
 from data_processing import fill_missing_data, load_data
 import pandas as pd
 
-def register_callbacks(app):
+def register_callbacks(app) -> None:
     df = load_data()
 
     # Колбэк для хранения выбранного года
@@ -16,7 +17,7 @@ def register_callbacks(app):
     Output('selected-year-store', 'data'),
     Input('year-slider', 'value')
 )
-    def update_selected_year(selected_year):
+    def update_selected_year(selected_year: int) -> int:
         return selected_year
 
     @callback(
@@ -24,11 +25,16 @@ def register_callbacks(app):
         Input('dropdown-selection', 'value'),
         Input('y-axis-selection', 'value')
     )
-    def update_graph(selected_countries, y_axis):
-        dff = df[df.country.isin(selected_countries)]
+    def update_graph(selected_countries: List[str], y_axis: str) -> Dict[str, Any]:
+        filtered_df = df[df.country.isin(selected_countries)]
         
-        # На временном ряду не нужно заполнять пропуски, так как показываем динамику за все годы
-        return px.line(dff, x='year', y=y_axis, color='country', title=f'Динамика {y_axis}')
+        return px.line(
+            filtered_df,
+            x='year',
+            y=y_axis,
+            color='country',
+            title=f'Динамика {y_axis}'
+        )
 
     @callback(
         Output('bubble-chart', 'figure'),
@@ -37,13 +43,11 @@ def register_callbacks(app):
         Input('size-bubble', 'value'),
         Input('selected-year-store', 'data')
     )
-    def update_bubble_chart(x_axis, y_axis, size, selected_year):
-        # Находим все страны в датасете
+    def update_bubble_chart(x_axis: str, y_axis: str, size: str, selected_year: int) -> Dict[str, Any]:
+        
         all_countries = df['country'].unique()
-        
-        # Заполняем пропущенные данные
         filtered_df = fill_missing_data(df, selected_year, all_countries)
-        
+
         fig = px.scatter(
             filtered_df, 
             x=x_axis, 
@@ -81,7 +85,7 @@ def register_callbacks(app):
     Output('top-population-chart', 'figure'),
     Input('year-slider', 'value')
 )
-    def update_top_population(selected_year):
+    def update_top_population(selected_year: int) -> Dict[str, Any]:
         # Находим все страны в датасете
         all_countries = df['country'].unique()
         
@@ -142,7 +146,7 @@ def register_callbacks(app):
         Output('continent-population-pie', 'figure'),
         Input('year-slider', 'value')
     )
-    def update_continent_population(selected_year):
+    def update_continent_population(selected_year: int) -> Dict[str, Any]:
         # Находим все страны в датасете
         all_countries = df['country'].unique()
         
