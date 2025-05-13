@@ -10,6 +10,12 @@ from data_processing import fill_missing_data, load_data
 import pandas as pd
 
 def register_callbacks(app) -> None:
+    """
+    Регистрирует все колбек-функции приложения Dash.
+    
+    Args:
+        app: Экземпляр Dash приложения
+    """
     df = load_data()
 
     # Колбэк для хранения выбранного года
@@ -18,6 +24,15 @@ def register_callbacks(app) -> None:
     Input('year-slider', 'value')
 )
     def update_selected_year(selected_year: int) -> int:
+        """
+        Сохраняет выбранный год в хранилище.
+        
+        Args:
+            selected_year: Год, выбранный пользователем
+            
+        Returns:
+            Выбранный год
+        """
         return selected_year
 
     @callback(
@@ -26,6 +41,16 @@ def register_callbacks(app) -> None:
         Input('y-axis-selection', 'value')
     )
     def update_graph(selected_countries: List[str], y_axis: str) -> Dict[str, Any]:
+        """
+        Обновляет линейный график в зависимости от выбранных стран и оси Y.
+        
+        Args:
+            selected_countries: Список выбранных стран
+            y_axis: Показатель для оси Y
+            
+        Returns:
+            Объект фигуры Plotly для линейного графика
+        """
         filtered_df = df[df.country.isin(selected_countries)]
         
         return px.line(
@@ -44,7 +69,18 @@ def register_callbacks(app) -> None:
         Input('selected-year-store', 'data')
     )
     def update_bubble_chart(x_axis: str, y_axis: str, size: str, selected_year: int) -> Dict[str, Any]:
+        """
+        Обновляет пузырьковую диаграмму на основе выбранных параметров.
         
+        Args:
+            x_axis: Показатель для оси X
+            y_axis: Показатель для оси Y
+            size: Показатель для размера пузырьков
+            selected_year: Выбранный год
+            
+        Returns:
+            Объект фигуры Plotly для пузырьковой диаграммы
+        """
         all_countries = df['country'].unique()
         filtered_df = fill_missing_data(df, selected_year, all_countries)
 
@@ -86,6 +122,15 @@ def register_callbacks(app) -> None:
     Input('year-slider', 'value')
 )
     def update_top_population(selected_year: int) -> Dict[str, Any]:
+        """
+        Обновляет столбчатую диаграмму топ-15 стран по населению.
+        
+        Args:
+            selected_year: Выбранный год
+            
+        Returns:
+            Объект фигуры Plotly для столбчатой диаграммы
+        """
         # Находим все страны в датасете
         all_countries = df['country'].unique()
         
@@ -147,6 +192,15 @@ def register_callbacks(app) -> None:
         Input('year-slider', 'value')
     )
     def update_continent_population(selected_year: int) -> Dict[str, Any]:
+        """
+        Обновляет круговую диаграмму распределения населения по континентам.
+        
+        Args:
+            selected_year: Выбранный год
+            
+        Returns:
+            Объект фигуры Plotly для круговой диаграммы
+        """
         # Находим все страны в датасете
         all_countries = df['country'].unique()
         
