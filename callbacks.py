@@ -1,3 +1,8 @@
+"""
+Модуль с колбек-функциями для приложения Dash.
+Содержит логику обновления графиков и визуализаций.
+"""
+
 from dash import callback, Output, Input
 import plotly.express as px
 from data_processing import fill_missing_data, load_data
